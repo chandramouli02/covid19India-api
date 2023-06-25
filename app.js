@@ -24,14 +24,21 @@ const initializeDBAndServer = async () => {
 
 initializeDBAndServer();
 
-//api1 get states details..
+const convertDbObjectToResponseObject = (dbObject) => {
+  return {
+    stateId: dbObject.state_id,
+    stateName: dbObject.state_name,
+    population: dbObject.population,
+  };
+};
+
+//api1
 app.get("/states/", async (request, response) => {
-  const getStatesQuery = `
-    select state_id as stateId, state_name as stateName, population from state
-    ;`;
-  const dbResponse = await db.all(getStatesQuery);
-  console.log(dbResponse);
-  response.send(dbResponse);
+  const getStateQuery = `
+    select * from state`;
+  const dbResponse = await db.all(getStateQuery);
+  //console.log(dbResponse);
+  response.send(dbResponse.map(convertDbObjectToResponseObject));
 });
 
 //api2
@@ -119,14 +126,19 @@ app.put("/districts/:districtId", async (request, response) => {
 //api7 get stateStatus by state_id
 app.get("/states/:stateId/stats/", async (request, response) => {
   const { stateId } = request.params;
+  console.log(stateId);
   const getStatesQuery = `
-    select cases as totalCases, cured as totalCured, active as totalActive, deaths as totalDeaths from state 
-    cross join district on district.state_id = state.state_id
+    select sum(cases), sum(cured), sum(active), sum(deaths) from district 
     where state_id = ${stateId};
     `;
-  const dbResponse = await db.all(getStatesQuery);
-  console.log(dbResponse);
-  response.send(dbResponse[0]);
+  let stats = await db.all(getStatesQuery);
+  stats = stats[0];
+  response.send({
+    totalCases: stats["sum(cases)"],
+    totalCured: stats["sum(cured)"],
+    totalActive: stats["sum(active)"],
+    totalDeaths: stats["sum(deaths)"],
+  });
 });
 
 //api8 selects statename based on districtId
